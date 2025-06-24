@@ -4,13 +4,19 @@ import axios from 'axios';
 export default function App() {
   const [file, setFile] = useState(null);
   const [question, setQuestion] = useState('');
-  const [answer, setAnswer]   = useState('');
+  const [answer, setAnswer] = useState('');
+  const [status, setStatus] = useState('');
 
   const upload = async () => {
     if (!file) return;
-    const data = new FormData(); data.append('file', file);
-    await axios.post('http://localhost:8000/upload', data);
-    alert('Uploaded!');
+    const data = new FormData();
+    data.append('file', file);
+    try {
+      const res = await axios.post('http://localhost:8000/upload', data);
+      setStatus(`Uploaded ${res.data.filename}`);
+    } catch (err) {
+      setStatus('Upload failed');
+    }
   };
 
   const ask = async () => {
@@ -21,29 +27,42 @@ export default function App() {
   };
 
   return (
-    <main style={{fontFamily:'sans-serif',padding:20}}>
+    <div className="app">
       <h1>RAG Transcript QA</h1>
 
       <section>
         <h2>1️⃣ Upload transcript</h2>
-        <input type="file" accept=".txt,.vtt,.srt"
-               onChange={e=>setFile(e.target.files[0])}/>
-        <button onClick={upload} style={{marginLeft:10}}>Upload</button>
+        <input
+          type="file"
+          accept=".txt,.vtt,.srt"
+          onChange={e => setFile(e.target.files[0])}
+        />
+        <button onClick={upload} style={{ marginLeft: 10 }}>Upload</button>
+        {status && (
+          <p
+            className={`status ${status.startsWith('Uploaded') ? 'success' : 'error'}`}
+          >
+            {status}
+          </p>
+        )}
       </section>
 
-      <section style={{marginTop:30}}>
+      <section>
         <h2>2️⃣ Ask a question</h2>
-        <input style={{width:300}}
-               value={question}
-               onChange={e=>setQuestion(e.target.value)}
-               placeholder="e.g. What service handles auth?"/>
-        <button onClick={ask} style={{marginLeft:10}}>Ask</button>
+        <input
+          className="question-input"
+          value={question}
+          onChange={e => setQuestion(e.target.value)}
+          placeholder="e.g. What service handles auth?"
+        />
+        <button onClick={ask} style={{ marginLeft: 10 }}>Ask</button>
       </section>
 
-      <section style={{marginTop:30}}>
+      <section>
         <h2>Answer</h2>
-        <pre style={{background:'#f6f8fa',padding:10}}>{answer}</pre>
+        <pre>{answer}</pre>
       </section>
-    </main>
+    </div>
   );
 }
+
