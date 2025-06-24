@@ -80,6 +80,10 @@ import numpy as np
 from sklearn.feature_extraction.text import HashingVectorizer
 import chromadb
 from chromadb.config import Settings
+import openai
+import os
+
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # ── real model (future) ──────────────────────────────────────────────
 # from sentence_transformers import SentenceTransformer
@@ -135,15 +139,25 @@ def embed_transcript(text: str, metadata: dict | None = None) -> None:
 
 def query_transcripts(question: str, k: int = 4) -> str:
     """
-    Retrieve with same vectorizer, then **for now** just echo the chunks.
-    Later: feed `context` + `question` to an LLM.
+    Retrieve relevant chunks and generate an answer via OpenAI ChatCompletion.
     """
     q_vec = _vectorizer.transform([question]).toarray().tolist()
     res = collection.query(query_embeddings=q_vec, n_results=k)
     docs = res["documents"][0]
     context = "\n---\n".join(docs)
-    return (
-        "🔍 **Hash-TF-IDF placeholder answer**\n\n"
-        "**Retrieved context:**\n"
-        f"{context}"
+
+    completion = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {
+                "role": "system",
+                "content": "Answer questions about the transcripts using the given context.",
+            },
+            {
+                "role": "user",
+                "content": f"Context:\n{context}\n\nQuestion: {question}",
+            },
+        ],
     )
+
+    return completion["choices"][0]["message"]["content"].strip()

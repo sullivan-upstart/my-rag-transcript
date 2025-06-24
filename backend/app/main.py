@@ -5,7 +5,8 @@ import uuid
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from .embeddings import embed_transcript, query_transcripts
+# Temporarily comment out to test startup
+# from .embeddings import embed_transcript, query_transcripts
 from .parsing import parse_transcript
 
 app = FastAPI(title="RAG-Transcript-QA")
@@ -40,7 +41,8 @@ async def upload_file(file: UploadFile = File(...)):
         # Persist the original file for debugging/auditing purposes.
         path.write_text(raw)
 
-        embed_transcript(text, {"filename": name})
+        # Temporarily comment out embedding
+        # embed_transcript(text, {"filename": name})
     except Exception as exc:  # pragma: no cover - defensive
         if path.exists():
             path.unlink(missing_ok=True)
@@ -51,4 +53,6 @@ async def upload_file(file: UploadFile = File(...)):
 @app.post("/query")
 async def query(question: str = Form(...)):
     """Return answer based on retrieved chunks (mock for now)."""
-    return {"answer": query_transcripts(question)}
+    # Temporarily return mock response
+    # return {"answer": query_transcripts(question)}
+    return {"answer": f"Mock response to: {question}"}
