@@ -2,10 +2,11 @@
 from pathlib import Path
 import uuid
 
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from .embeddings import embed_transcript, query_transcripts
+from .parsing import parse_transcript
 
 app = FastAPI(title="RAG-Transcript-QA")
 
@@ -22,12 +23,29 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
-    """Save transcript, embed & store."""
+    """Save transcript, clean text, embed & store."""
+    # Ensure a unique filename so repeated uploads do not collide on disk.
     name = f"{uuid.uuid4()}_{file.filename}"
     path = UPLOAD_DIR / name
-    text = (await file.read()).decode("utf-8", errors="ignore")
-    path.write_text(text)
-    embed_transcript(text, {"filename": name})
+
+    # ``UploadFile.read`` yields ``bytes``; decode to ``str``. ``errors='ignore'``
+    # avoids failures on odd characters that occasionally appear in transcripts.
+    try:
+        raw = (await file.read()).decode("utf-8", errors="ignore")
+
+        # Normalize the transcript (strip numeric indices / timestamps) so that
+        # embedding operates on pure text instead of subtitle artefacts.
+        text = parse_transcript(raw)
+
+        # Persist the original file for debugging/auditing purposes.
+        path.write_text(raw)
+
+        embed_transcript(text, {"filename": name})
+    except Exception as exc:  # pragma: no cover - defensive
+        if path.exists():
+            path.unlink(missing_ok=True)
+        raise HTTPException(status_code=500, detail=str(exc))
+
     return {"status": "ok", "filename": name}
 
 @app.post("/query")
